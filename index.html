@@ -143,9 +143,18 @@ idx2 &lt;- grep(pattern = &quot;skew&quot;, x = names(newTrain))
 toRemove &lt;- c(1:8,idx1, idx2) 
 finalTrain &lt;- newTrain[complete.cases(newTrain[,-toRemove]),-toRemove]
 
-library(caret)
-library(randomForest)
-set.seed(1234)
+library(caret)</code></pre>
+<pre><code>## Loading required package: lattice</code></pre>
+<pre><code>## Loading required package: ggplot2</code></pre>
+<pre class="r"><code>library(randomForest)</code></pre>
+<pre><code>## randomForest 4.6-12</code></pre>
+<pre><code>## Type rfNews() to see new features/changes/bug fixes.</code></pre>
+<pre><code>## 
+## Attaching package: 'randomForest'</code></pre>
+<pre><code>## The following object is masked from 'package:ggplot2':
+## 
+##     margin</code></pre>
+<pre class="r"><code>set.seed(1234)
 models &lt;- rfcv(trainx = finalTrain[,-60], trainy = finalTrain$classe,cv.fold = 10)
 library(knitr)</code></pre>
 <div class="figure" style="text-align: center">
