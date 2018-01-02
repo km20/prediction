@@ -14,10 +14,9 @@ In this project, the random forest method is used to predict the "classe" variab
 ## Feature selection
 Since the dataset contains a huge number of predictors, we should first reduce the number of features to be included in the model. The data measures are related to 4 parts (belt, arm, glove and dumbbell). For each there are there exist several variables (roll, pitch, yaw, accelerometer, gyroscope and magnetometer.
 
-The first step is to keep only the variables that summarize the measurements. These variables correpsond to a large number of missing values in the data set. The second choice is to remove skewness and kurtosis variables since they are related to the shape of the distribution and their effect may be less important than the other perdictors.
+The first step is to keep only the variables with a small number of missing values in the data set. The second choice is to remove skewness and kurtosis variables since they are related to the shape of the distribution and their effect may be less important than the other perdictors.
 Moreover, we split data into two datasets : training set (70%) and testing set (30%). The testing set will be used to estimate the out of sample error.
 
-Finally, we use the random Forest cross validation function to select the features to include in the model. A 10-fold cross validation is used.
 
 ```{r, cache=TRUE}
 train <- read.csv("pml-training.csv", header = T, na.strings=c("","NA","#DIV/0!"))
@@ -26,8 +25,8 @@ propNA <- function(x){
   p
 }
 res <- apply(X = train, MARGIN = 2, FUN = propNA)
-res["classe"] <- 1
-newTrain <- train[,res > 0.5]
+
+newTrain <- train[,res < 0.05]
 idx1 <- grep(pattern = "kurtosis", x = names(newTrain))
 idx2 <- grep(pattern = "skew", x = names(newTrain))
 toRemove <- c(1:8,idx1, idx2) 
@@ -39,38 +38,19 @@ set.seed(1234)
 inTrain <- createDataPartition(finalTrain$classe,p=0.7, list = FALSE)
 training <- finalTrain[inTrain,]
 testing <- finalTrain[-inTrain,]
-models <- rfcv(trainx = training[,-dim(training)[2]], trainy = training$classe,cv.fold = 10)
-library(knitr)
-``` 
-```{r, echo=FALSE, fig.align='center', fig.cap='Cross validation error in relation with number of variables'}
-plot(models$n.var,models$error.cv, type = "l", lwd=2, col="red")
 ```
 
-The obtained results shows that the `r models$n.var[3]` most important variables are enough to perform the prediction task.
-
-```{r}
-suppressMessages(library(caret))
-suppressMessages(library(randomForest))
-
-mod <- randomForest(classe~., data=training)
-I <- importance(x = mod)
-selectVars <- data.frame(variable=names(training)[order(I, decreasing = T)[1:models$n.var[3]]], Importance=I[order(I, decreasing = T)[1:models$n.var[3]]])
-```
-
-The following varialbes are selected :
-
-```{r echo=F}
-suppressMessages(library(knitr))
-kable(selectVars)
-```
 
 ## Building the model
 
 The selected variable are used to build a random forest model :
 
-```{r, cache=T}
-subTrain <- training[,c(as.character(selectVars$variable),"classe")]
-Fmod <- randomForest(classe~., data = subTrain)
+```{r}
+
+suppressMessages(library(caret))
+suppressMessages(library(randomForest))
+
+mod <- randomForest(classe~., data=training)
 
 ```
 
@@ -78,11 +58,12 @@ Fmod <- randomForest(classe~., data = subTrain)
 
 The out of sample error is estimated using the test set whic represents almost 30% of the initial data set.
 ```{r}
-pred <- predict(Fmod, newdata = testing)
+pred <- predict(mod, newdata = testing)
 predRes <- confusionMatrix(testing$classe, pred)
 ```
 
-The model gives an accuracy of 84%. The detailed results are reported in the following table:
+The model gives an accuracy of 99.63%. The detailed results are reported in the following table:
 ```{r echo=FALSE}
+suppressMessages(library(knitr))
 kable(predRes$byClass)
 ```
