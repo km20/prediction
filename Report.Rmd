@@ -1,0 +1,74 @@
+---
+title: "Activity Prediction"
+author: "K.M"
+date: "`r Sys.Date()`" 
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+In this project, the random forest method is used to predict the "classe" variable based on other features. The model is built using the "caret" package.
+
+## Feature selection
+Since the dataset contains a huge number of predictors, we should first reduce the number of features to be included in the model. The data measures are related to 4 parts (belt, arm, glove and dumbbell). For each there are there exist several variables (roll, pitch, yaw, accelerometer, gyroscope and magnetometer.
+
+The first step is to keep only the variable that summarizes the measurements. These variables corresponds to a lage number of missing values in the data set. The second choice is to remove skewness and kurtosis variables since they are related to the shape of the distribution and their effect may be less important than the other perdictors.
+
+Finally, we use the random Forest cross validation function to select the features to include in the model. A 10-fold cross validation is used.
+
+```{r, cache=TRUE}
+train <- read.csv("pml-training.csv")
+propNA <- function(x){
+  p <- mean(is.na(x))
+  p
+}
+res <- apply(X = train, MARGIN = 2, FUN = propNA)
+res[160]<-1
+newTrain <- train[,res > 0.5]
+idx1 <- grep(pattern = "kurtosis", x = names(newTrain))
+idx2 <- grep(pattern = "skew", x = names(newTrain))
+toRemove <- c(1:8,idx1, idx2) 
+finalTrain <- newTrain[complete.cases(newTrain[,-toRemove]),-toRemove]
+
+library(caret)
+library(randomForest)
+set.seed(1234)
+models <- rfcv(trainx = finalTrain[,-60], trainy = finalTrain$classe,cv.fold = 10)
+library(knitr)
+``` 
+```{r, echo=FALSE, fig.align='center', fig.cap='Cross validation error in relation with number of variables'}
+plot(models$n.var,models$error.cv, type = "l", lwd=2, col="red")
+```
+
+The obtained results shows that the 15 most important variables are enough to perform the prediction task.
+
+```{r}
+suppressMessages(library(caret))
+suppressMessages(library(randomForest))
+
+mod <- randomForest(classe~., data=finalTrain)
+I <- importance(x = mod)
+selectVars <- data.frame(variable=names(finalTrain)[order(I, decreasing = T)[1:15]],
+                         Importance=I[order(I, decreasing = T)[1:15]])
+```
+
+The following varialbes are selected :
+
+```{r echo=F}
+suppressMessages(library(knitr))
+kable(selectVars)
+```
+
+## Building the model
+
+The selected variable are used to build a random forest model :
+
+```{r, cache=T}
+subTrain <- finalTrain[,c(as.character(selectVars$variable),"classe")]
+Fmod <- randomForest(classe~., data = subTrain)
+
+```
+
+The obtained model would give an out of sample error slightly larger than `r round(models$error.cv[3],2)`
